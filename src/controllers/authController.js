@@ -16,7 +16,17 @@ import { logger } from '../utils/logger.js';
  */
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password, role = 'client' } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      password, 
+      dateOfBirth,
+      address,
+      phoneNumber,
+      role,
+      category
+    } = req.body;
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
@@ -27,37 +37,40 @@ export const register = async (req, res, next) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
+    let userData = {
+      firstName,
+      lastName,
       email,
       password,
-      role,
-    });
+      dateOfBirth,
+      address,
+      phoneNumber,
+      role
+    };
+    
+    if (role === 'artisan' && category) {
+      userData.category = category;
+    }
 
-    // Generate verification token
+    const user = await User.create(userData);
     const verificationToken = user.generateVerificationToken();
     await user.save();
 
-    // Create verification URL
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
 
     try {
-      // Send verification email
       await sendEmail({
         to: user.email,
         subject: 'Email Verification',
         text: `Please verify your email by clicking on the following link: ${verificationUrl}`,
-        html: generateVerificationEmail(user.name, verificationUrl),
+        html: generateVerificationEmail(user.firstName, verificationUrl),
       });
 
-      // Return success response without sending token (require email verification first)
       res.status(201).json({
         success: true,
         message: 'User registered successfully. Please check your email to verify your account.',
       });
     } catch (error) {
-      // If email sending fails, still create the user but inform about verification issue
       logger.error(`Failed to send verification email: ${error.message}`);
       res.status(201).json({
         success: true,
@@ -78,13 +91,11 @@ export const verifyEmail = async (req, res, next) => {
   try {
     const { token } = req.params;
 
-    // Hash token
     const verificationToken = crypto
       .createHash('sha256')
       .update(token)
       .digest('hex');
 
-    // Find user by token
     const user = await User.findOne({
       verificationToken,
       verificationTokenExpires: { $gt: Date.now() },
@@ -121,10 +132,8 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ email }).select('+password');
 
-    // Check if user exists
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -132,7 +141,7 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check if password matches
+
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -141,7 +150,6 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Check if email is verified
     if (!user.isEmailVerified) {
       return res.status(401).json({
         success: false,
@@ -149,25 +157,30 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // Generate tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Save refresh token
     user.refreshToken = refreshToken;
     await user.save();
+
+    const userData = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      profileImage: user.profileImage,
+    };
+    
+    if (user.role === 'artisan') {
+      userData.category = user.category;
+    }
 
     res.status(200).json({
       success: true,
       accessToken,
       refreshToken,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        profileImage: user.profileImage,
-      },
+      user: userData,
     });
   } catch (error) {
     next(error);
@@ -279,7 +292,7 @@ export const forgotPassword = async (req, res, next) => {
         to: user.email,
         subject: 'Password Reset',
         text: `You requested a password reset. Please go to: ${resetUrl}`,
-        html: generatePasswordResetEmail(user.name, resetUrl),
+        html: generatePasswordResetEmail(user.firstName, resetUrl),
       });
 
       res.status(200).json({
@@ -344,7 +357,7 @@ export const resetPassword = async (req, res, next) => {
         to: user.email,
         subject: 'Password Changed',
         text: 'Your password has been changed successfully.',
-        html: generatePasswordChangedEmail(user.name),
+        html: generatePasswordChangedEmail(user.firstName),
       });
     } catch (error) {
       logger.error(`Failed to send password changed email: ${error.message}`);
