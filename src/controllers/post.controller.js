@@ -3,6 +3,7 @@ import pick from '../utils/pick.js';
 import ApiError from '../utils/ApiError.js';
 import catchAsync from '../utils/catchAsync.js';
 import { postService } from '../services/index.js';
+import { deleteFromCloudinary, getPublicIdFromUrl } from '../config/clouadinary.js';
 
 const createPost = catchAsync(async (req, res) => {
   const post = await postService.createPost({
@@ -37,6 +38,21 @@ const updatePost = catchAsync(async (req, res) => {
   if (post.user.toString() !== req.user.id) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to update this post');
   }
+
+  // If media is being updated, handle deletion of old media from Cloudinary
+  if (req.body.media && post.media) {
+    // Find media that are in the old post but not in the new update (these should be deleted)
+    const newMediaUrls = req.body.media.map(media => media.url);
+    const mediaToDelete = post.media.filter(media => !newMediaUrls.includes(media.url));
+
+    // Delete removed media from Cloudinary
+    await Promise.all(mediaToDelete.map(async (media) => {
+      const publicId = getPublicIdFromUrl(media.url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, media.type);
+      }
+    }));
+  }
   
   const updatedPost = await postService.updatePostById(req.params.postId, req.body);
   res.send(updatedPost);
@@ -51,6 +67,16 @@ const deletePost = catchAsync(async (req, res) => {
   // Check if the user is the owner of the post
   if (post.user.toString() !== req.user.id) {
     throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to delete this post');
+  }
+  
+  // Delete all media from Cloudinary
+  if (post.media && post.media.length > 0) {
+    await Promise.all(post.media.map(async (media) => {
+      const publicId = getPublicIdFromUrl(media.url);
+      if (publicId) {
+        await deleteFromCloudinary(publicId, media.type);
+      }
+    }));
   }
   
   await postService.deletePostById(req.params.postId);

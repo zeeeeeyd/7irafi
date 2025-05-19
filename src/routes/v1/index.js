@@ -3,6 +3,7 @@ import authRoute from './auth.route.js';
 import userRoute from './user.route.js';
 import postRoute from './post.route.js';
 import orderRoute from './order.route.js';
+import mediaRoute from './media.route.js';
 import config from '../../config/config.js';
 
 const router = express.Router();
@@ -23,6 +24,10 @@ const defaultRoutes = [
   {
     path: '/orders',
     route: orderRoute,
+  },
+  {
+    path: '/media',
+    route: mediaRoute,
   },
 ];
 
