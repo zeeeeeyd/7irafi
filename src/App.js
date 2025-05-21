@@ -13,6 +13,7 @@ import { errorConverter, errorHandler } from './middlewares/error.js';
 import rateLimiter from './middlewares/rateLimiter.js';
 import routes from './routes/v1/index.js';
 import ApiError from './utils/ApiError.js';
+import { setupSwagger } from './config/swagger.js';
 
 const app = express();
 
@@ -21,25 +22,28 @@ if (config.env !== 'test') {
   app.use(morgan.errorHandler);
 }
 
-
+// Set security HTTP headers
 app.use(helmet());
 
-
+// Parse json request body
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
+// Sanitize request data
 app.use(xss());
 app.use(mongoSanitize());
+
+// Enable gzip compression
 app.use(compression());
 
 app.use(cors());
 app.options('*', cors());
 
+// Initialize passport and jwt authentication
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
 
-
+// Rate limiting
 if (config.env === 'production') {
   app.use('/v1/auth', rateLimiter.authLimiter);
 }
@@ -48,12 +52,15 @@ if (config.env === 'production') {
 app.use('/v1', routes);
 
 // Send back a 404 error for any unknown API request
+// Send back a 404 error for any unknown API request
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not found'));
 });
 
-
+// Convert error to ApiError, if needed
 app.use(errorConverter);
+
+// Handle error
 app.use(errorHandler);
 
 export default app;
