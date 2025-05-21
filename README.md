@@ -59,11 +59,12 @@ API documentation is available at `/api-docs` when the server is running.
 
 - `PORT` - Server port
 - `NODE_ENV` - Environment (development/production)
-- `MONGODB_URI` - MongoDB connection string
+- `MONGODB_URL` - MongoDB connection string
 - `JWT_SECRET` - Secret for JWT tokens
-- `REFRESH_TOKEN_SECRET` - Secret for refresh tokens
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY` - Clouadinary credentials
+- `CLOUDINARY_API_SECRET`
 - `SMTP_*` - Email configuration
-- `FRONTEND_URL` - Frontend URL for links in emails
 
 ## Authentication Flow
 
