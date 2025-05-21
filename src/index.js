@@ -2,12 +2,8 @@ import mongoose from 'mongoose';
 import app from './App.js';
 import config from './config/config.js';
 import logger from './config/logger.js';
-import { setupSwagger } from './config/swagger.js';
 
 let server;
-
-// Setup Swagger documentation
-setupSwagger(app);
 
 // Connect to MongoDB
 mongoose.connect(config.mongoose.url, config.mongoose.options)
